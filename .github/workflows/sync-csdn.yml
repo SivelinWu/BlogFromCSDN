@@ -184,6 +184,23 @@ jobs:
                   return node
               return soup.select_one("#article_content") or soup.select_one("div.article_content")
 
+          angle_token_pattern = re.compile(r"<([^<>\\s]{1,80})>")
+
+          def sanitize_markdown(markdown: str) -> str:
+              """
+              VitePress/ Vue 会把 `<token>` 视为 HTML 标签，若无闭合会导致构建失败。
+              这里保留 `<https://...>` 这类自动链接，其余 `<...>` 统一转义为 `&lt;...&gt;`。
+              """
+
+              def repl(m: re.Match) -> str:
+                  inner = m.group(1)
+                  low = inner.lower()
+                  if low.startswith("http://") or low.startswith("https://"):
+                      return m.group(0)
+                  return f"&lt;{inner}&gt;"
+
+              return angle_token_pattern.sub(repl, markdown)
+
           img_md_pattern = re.compile(r"!\[[^\]]*\]\((https?://[^)]+)\)")
 
           def download_and_rewrite_images(article_id: str, markdown: str) -> str:
@@ -244,6 +261,7 @@ jobs:
                   print("  跳过（未找到正文节点 #content_views / #article_content）")
                   continue
               body_md = h2t.handle(str(content))
+              body_md = sanitize_markdown(body_md)
               body_md = download_and_rewrite_images(article_id, body_md)
               path = os.path.join(OUTPUT_DIR, slug_filename(title, article_id))
               with open(path, "w", encoding="utf-8") as f:
