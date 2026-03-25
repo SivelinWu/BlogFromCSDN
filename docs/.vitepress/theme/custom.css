@@ -118,14 +118,20 @@ body {
   overflow-wrap: break-word;
 }
 
-/* Article list page: 80% width */
+/* Article list page: 95% width (increased by ~50% from 80%) */
 .VPDoc:has(.blogList) .content-container {
-  max-width: 80%;
+  max-width: 95%;
 }
 
-/* Wider article detail pages (no sidebar) - 80% width */
+/* Wider article detail pages (no sidebar) - 95% width */
 .VPDoc .content-container {
-  max-width: 80%;
+  max-width: 95%;
+}
+
+/* Also expand the inner content area */
+.VPDoc .content {
+  max-width: 100%;
+  padding: 0 20px;
 }
 
 @media (max-width: 960px) {
