@@ -1,14 +1,12 @@
 name: 同步CSDN文章到博客
 on:
-  schedule:
-    - cron: '0 */6 * * *'
-  workflow_dispatch:
+  workflow_dispatch:  # 手动触发，调试用
 
 permissions:
   contents: write
 
 env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true  # 解决Node.js 20警告
 
 jobs:
   sync:
@@ -18,49 +16,40 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-        continue-on-error: false
 
       - name: 2. 配置Node.js环境
         uses: actions/setup-node@v4
         with:
           node-version: 20
-        continue-on-error: false
 
       - name: 3. 创建文章目录
         run: |
           mkdir -p ./docs/articles
-          echo "✅ 文章目录创建成功"
-        continue-on-error: false
+          echo "✅ 文章目录创建成功：./docs/articles"
 
-      - name: 4. 从GitHub安装csdn2md（绕开npm 404）
+      - name: 4. 安装csdn2md（用你给的正确仓库地址）
         run: |
-          git clone https://github.com/zuoxiaobai/csdn2md.git /tmp/csdn2md
-          cd /tmp/csdn2md
-          npm install -g .
+          echo "🚀 开始安装csdn2md工具，仓库：Qalxry/csdn2md"
+          npm install -g github:Qalxry/csdn2md
           csdn2md --version
           echo "✅ 同步工具安装成功"
-        continue-on-error: false
 
-      - name: 5. 拉取CSDN文章（带Cookie+详细日志）
-        env:
-          CSDN_USERNAME: weixin_42390585
-          CSDN_COOKIE: ${{ secrets.CSDN_COOKIE }}
+      - name: 5. 拉取CSDN文章（测试版，仅拉1篇，快速验证）
         run: |
-          echo "🚀 拉取CSDN文章，用户名：$CSDN_USERNAME"
-          csdn2md -u $CSDN_USERNAME -c "$CSDN_COOKIE" -v -o ./docs/articles
+          echo "🚀 开始拉取CSDN文章，用户名：weixin_42390585"
+          # 仅拉取1篇文章测试，跑通后再改全量
+          csdn2md -u weixin_42390585 -o ./docs/articles --limit 1
           echo "✅ 文章拉取完成"
-        continue-on-error: false
 
-      - name: 6. 提交更新
+      - name: 6. 提交更新到GitHub
         run: |
           git config --global user.name "auto-sync"
           git config --global user.email "auto@github.com"
           git add .
           if git diff --cached --quiet; then
-            echo "✅ 无新文章，跳过提交"
+            echo "✅ 无新文章，无需提交"
             exit 0
           fi
-          git commit -m "同步CSDN最新文章"
+          git commit -m "同步CSDN测试文章"
           git push
           echo "✅ 提交成功"
-        continue-on-error: false
