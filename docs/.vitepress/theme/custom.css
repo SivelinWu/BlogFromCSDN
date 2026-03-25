@@ -51,15 +51,20 @@ body {
 }
 
 /* ============================================
-   文章列表页 - 全宽布局
+   文章列表页 - 带背景卡片
    ============================================ */
 .VPDoc:has(.blog-home) {
-  padding: 0 !important;
+  padding: 24px !important;
 }
 
 .VPDoc:has(.blog-home) .container {
-  max-width: 100% !important;
-  margin: 0 !important;
+  max-width: 900px !important;
+  margin: 0 auto !important;
+  background: #ffffff;
+  border-radius: 16px;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  padding: 32px;
 }
 
 .VPDoc:has(.blog-home) .content {
@@ -72,10 +77,10 @@ body {
 }
 
 /* ============================================
-   文章详情页 - 简洁阅读体验
+   文章详情页 - 带背景卡片
    ============================================ */
-.VPDoc {
-  padding: 32px 24px 96px !important;
+.VPDoc:not(:has(.blog-home)) {
+  padding: 24px !important;
 }
 
 /* 移除侧边栏 */
@@ -83,15 +88,19 @@ body {
   display: none !important;
 }
 
-/* 内容区居中，舒适宽度 */
-.VPDoc .container {
-  display: flex;
-  justify-content: center;
-  max-width: 100% !important;
+/* 详情页内容区带背景卡片 */
+.VPDoc:not(:has(.blog-home)) .container {
+  max-width: 900px !important;
+  margin: 0 auto !important;
+  background: #ffffff;
+  border-radius: 16px;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  padding: 32px;
 }
 
 .VPDoc .content {
-  max-width: 800px !important;
+  max-width: 100% !important;
   width: 100%;
   padding: 0 !important;
 }

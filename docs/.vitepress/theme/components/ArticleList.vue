@@ -94,15 +94,14 @@ function formatDateFromId(id) {
 
 <style scoped>
 .blog-home {
-  max-width: 1400px;
+  max-width: 100%;
   margin: 0 auto;
-  padding: 40px 24px;
 }
 
 /* 头部区域 */
 .blog-header {
   text-align: center;
-  margin-bottom: 48px;
+  margin-bottom: 32px;
   padding: 0 20px;
 }
 
@@ -170,10 +169,6 @@ function formatDateFromId(id) {
 @media (max-width: 480px) {
   .articles-waterfall {
     gap: 16px;
-  }
-  
-  .blog-home {
-    padding: 24px 16px;
   }
   
   .blog-title {
