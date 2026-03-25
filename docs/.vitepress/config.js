@@ -44,12 +44,14 @@ export default {
   description: "CSDN文章自动同步",
   cleanUrls: true,
   lastUpdated: true,
+  appearance: false,
+  ignoreDeadLinks: true,
   markdown: {
-    theme: { light: "github-light", dark: "github-dark" },
+    theme: "github-light",
   },
   head: [
-    ["meta", { name: "theme-color", content: "#0b1220" }],
-    ["meta", { name: "color-scheme", content: "dark light" }],
+    ["meta", { name: "theme-color", content: "#ffffff" }],
+    ["meta", { name: "color-scheme", content: "light" }],
   ],
   themeConfig: {
     siteTitle: "我的博客",
