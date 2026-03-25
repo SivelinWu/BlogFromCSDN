@@ -39,6 +39,11 @@ function buildSidebarItems() {
   }));
 }
 
+function getLatestArticleLink() {
+  const items = buildSidebarItems();
+  return items.length ? items[0].link : "/";
+}
+
 export default {
   title: "我的博客",
   description: "CSDN文章自动同步",
@@ -49,16 +54,18 @@ export default {
   markdown: {
     theme: "github-light",
   },
+  vite: {
+    define: {
+      __LATEST_ARTICLE_LINK__: JSON.stringify(getLatestArticleLink()),
+    },
+  },
   head: [
     ["meta", { name: "theme-color", content: "#ffffff" }],
     ["meta", { name: "color-scheme", content: "light" }],
   ],
   themeConfig: {
     siteTitle: "我的博客",
-    nav: [
-      { text: "首页", link: "/" },
-      { text: "全部文章", link: "/articles/" },
-    ],
+    nav: [],
     sidebar: [
       {
         text: "所有文章",
@@ -70,6 +77,6 @@ export default {
       copyright: `Copyright © ${new Date().getFullYear()} 我的博客`,
     },
     outline: [2, 3],
-    socialLinks: [{ icon: "github", link: "https://github.com/SivelinWu/BlogFromCSDN" }],
+    socialLinks: [],
   },
 };

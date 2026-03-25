@@ -1,15 +1,18 @@
-# 我的博客
+<script setup>
+import { onMounted } from 'vue'
+import { useRouter } from 'vitepress'
 
-这里是一个**纯博客站点**：文章从 CSDN 自动同步到 Markdown，并通过 Vercel 部署。
+const router = useRouter()
+onMounted(() => {
+  const target = typeof __LATEST_ARTICLE_LINK__ === 'string' ? __LATEST_ARTICLE_LINK__ : '/'
+  if (target && location.pathname === '/' && location.search === '' && location.hash === '') {
+    router.go(target)
+  }
+})
+</script>
 
-## 开始阅读
+正在跳转到最新文章…
 
-- 从左侧 **「所有文章」** 直接选择文章
-- 或进入 **[全部文章](/articles/)** 查看列表
-
-## 说明
-
-- **内容来源**：同步自 CSDN（文章内含原文链接）
-- **更新方式**：支持定时同步 + 手动触发
+如果没有自动跳转，请从左侧「所有文章」选择阅读。
 
 
