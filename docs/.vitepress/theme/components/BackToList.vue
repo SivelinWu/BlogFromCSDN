@@ -9,34 +9,45 @@ function goBack() {
 </script>
 
 <template>
-  <div class="backToList">
-    <button class="backToListBtn" @click="goBack">
-      ← 返回文章列表
+  <nav class="article-nav">
+    <button class="back-btn" @click="goBack">
+      <svg class="back-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="m15 18-6-6 6-6"></path>
+      </svg>
+      <span>返回列表</span>
     </button>
-  </div>
+  </nav>
 </template>
 
 <style scoped>
-.backToList {
-  margin: 0 0 20px;
+.article-nav {
+  margin-bottom: 24px;
 }
-.backToListBtn {
+
+.back-btn {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 10px 18px;
+  gap: 8px;
+  padding: 10px 16px;
   font-size: 14px;
-  font-weight: 600;
-  color: #4f46e5;
-  background: rgba(79, 70, 229, 0.08);
-  border: 1px solid rgba(79, 70, 229, 0.25);
-  border-radius: 10px;
+  font-weight: 500;
+  color: #6b7280;
+  background: transparent;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
   cursor: pointer;
-  transition: all 160ms ease;
+  transition: all 0.2s ease;
 }
-.backToListBtn:hover {
-  background: rgba(79, 70, 229, 0.14);
-  border-color: rgba(79, 70, 229, 0.4);
+
+.back-btn:hover {
+  color: #374151;
+  background: #f9fafb;
+  border-color: #d1d5db;
   transform: translateX(-2px);
+}
+
+.back-icon {
+  width: 18px;
+  height: 18px;
 }
 </style>
