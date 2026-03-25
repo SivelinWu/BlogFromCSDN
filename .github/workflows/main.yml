@@ -1,0 +1,33 @@
+name: 同步CSDN文章到博客
+on:
+  schedule:
+    - cron: '0 */6 * * *'  # 每6小时同步一次
+  workflow_dispatch:      # 可以手动触发
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: 设置Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: 安装CSDN同步工具
+        run: npm install -g csdn2md
+
+      - name: 拉取CSDN文章
+        run: csdn2md -u weixin_42390585 -o docs/articles
+
+      - name: 提交更新到GitHub
+        run: |
+          git config --global user.name "auto-sync"
+          git config --global user.email "auto@github.com"
+          git add .
+          git commit -m "同步CSDN最新文章" || exit 0
+          git push
