@@ -6,12 +6,12 @@
 很多人自己都有NAS，也会担心数据丢失，但是做RAID1成本有太高，有没有平民版的保障数据安全的方案呢？今天给大家介绍一个Duplicati+网盘，实现零成本的数据定时备份和恢复。
 ### 一、Duplicati部署
 首先下载镜像：  
-![](https://i-blog.csdnimg.cn/direct/188a4db1e8184af4adac635eae397859.png)
+![](/cdn/158468429/188a4db1e8184af4adac635eae397859.png)
 双击镜像进行部署，文件夹路径映射：
 注意：source的映射建议配成NAS的根目录，到时候配置备份任务时可以再选择具体备份哪个文件夹
-![](https://i-blog.csdnimg.cn/direct/3955deb2c259446190dbe40235a75afe.png)
+![](/cdn/158468429/3955deb2c259446190dbe40235a75afe.png)
 端口映射，选择一个不冲突的端口就行：
-![](https://i-blog.csdnimg.cn/direct/5ba9f9c8a4814fa59463e39c209af675.png)
+![](/cdn/158468429/5ba9f9c8a4814fa59463e39c209af675.png)
 环境变量配置，新增如下环境变量：
   * PUID=0
   * PGID=0
@@ -20,24 +20,24 @@
   * DUPLICATI__WEBSERVICE_PASSWORD=XXXXXX # 项目webui 的打开密码，随意设置，建议8位数
 
 
-![](https://i-blog.csdnimg.cn/direct/3cbcfa212f004f4d9e420854986f935c.png)
+![](/cdn/158468429/3cbcfa212f004f4d9e420854986f935c.png)
 点击提交，部署至此就完成了。
 ============================================================
 ### 二、备份任务配置
 下面讲一下，如何配置备份任务。
 等服务启动好之后，用浏览器，通过NAS的IP+上一步中配置的端口，访问Duplicati站点。
 密码即上一步中配置的环境变量的值。登录：
-![](https://i-blog.csdnimg.cn/direct/7b17a6d569344f55b8b2bd5000a2c6f4.png)
+![](/cdn/158468429/7b17a6d569344f55b8b2bd5000a2c6f4.png)
 点击新增备份来创建一个备份任务，选择配置新备份：
-![](https://i-blog.csdnimg.cn/direct/cd176a3f0b3340fea47825bf91855432.png)
+![](/cdn/158468429/cd176a3f0b3340fea47825bf91855432.png)
 随便取个名，设置密码，注意这个密码是用来查看备份、恢复数据的，一定不要忘记：
-![](https://i-blog.csdnimg.cn/direct/48567bc413a0464aa4708a23f1228c23.png)
+![](/cdn/158468429/48567bc413a0464aa4708a23f1228c23.png)
 备份保存位置，这一步是重点，本文讲的是用挂载到Alist的网盘来做备份存储，并且以百度网盘为例，所以存储类型选：WebDAV；服务器就是NAS的局域网IP，端口就是AList的端口；服务器上路径，都是以/dav开头的，第二级目录就是在Alist上挂载百度网盘的路径，然后可以在配置一层目录，免得备份文件都在网盘的根目录下显得很乱；用户名和密码就是Alist的登录账号和密码，配置完成后可以点击测试连接，提示成功就说明配置没有问题：
-![](https://i-blog.csdnimg.cn/direct/7985572624244f01ad92cc2b78a0b5fa.png)
+![](/cdn/158468429/7985572624244f01ad92cc2b78a0b5fa.png)
 源数据配置，选择计算机-source，这个目录就是NAS的根目录，然后可以选择你要备份的文件夹，可以多选：
-![](https://i-blog.csdnimg.cn/direct/fb40315dd48c4a0297a9f54ccadd152b.png)
+![](/cdn/158468429/fb40315dd48c4a0297a9f54ccadd152b.png)
 计划，就是配置备份定时执行的时间，不赘述了，按自己需求配置即可：
-![](https://i-blog.csdnimg.cn/direct/84964843a74943269ab2ae50242c092a.png)
+![](/cdn/158468429/84964843a74943269ab2ae50242c092a.png)
 最后一步，主要是配置保留策略，按需配置：
-![](https://i-blog.csdnimg.cn/direct/094ad2295b6240eba7e4fbf2678f69ab.png)
+![](/cdn/158468429/094ad2295b6240eba7e4fbf2678f69ab.png)
 点击保存提交。备份就配置完成了，在首页可以看到刚才配置的备份任务了。它就会按照我们配置的时间定时执行了。

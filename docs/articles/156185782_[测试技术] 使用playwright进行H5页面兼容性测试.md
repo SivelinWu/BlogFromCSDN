@@ -258,4 +258,4 @@
     console.log('报告生成完成：compatibility-report.csv');
     
 node scripts/generate-report.js
-![](https://i-blog.csdnimg.cn/direct/319f9f031ec7455db61e4b5c2fc77592.png)
+![](/cdn/156185782/319f9f031ec7455db61e4b5c2fc77592.png)
