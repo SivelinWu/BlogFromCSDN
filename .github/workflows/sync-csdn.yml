@@ -1,133 +1,66 @@
-name: 同步CSDN文章到博客（调试版，全日志）
+name: 同步CSDN文章到博客
 on:
-  workflow_dispatch:  # 只手动触发，方便调试，跑通后再加定时
+  schedule:
+    - cron: '0 */6 * * *'
+  workflow_dispatch:
 
-# 给足GitHub写入权限，彻底解决git push失败
 permissions:
   contents: write
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   sync:
     runs-on: ubuntu-latest
     steps:
-      - name: 1. 拉取仓库代码（打印目录日志）
+      - name: 1. 拉取仓库代码
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-        run: |
-          echo "✅ 步骤1：拉取代码成功，当前工作目录："
-          pwd
-          echo "📂 目录内容："
-          ls -la
+        continue-on-error: false
 
-      - name: 2. 配置Python环境（打印版本日志）
-        uses: actions/setup-python@v5
+      - name: 2. 配置Node.js环境
+        uses: actions/setup-node@v4
         with:
-          python-version: "3.11"
-        run: |
-          echo "✅ 步骤2：Python环境配置成功，版本信息："
-          python --version
-          pip --version
+          node-version: 20
+        continue-on-error: false
 
-      - name: 3. 创建文章目录（确认目录存在）
+      - name: 3. 创建文章目录
         run: |
           mkdir -p ./docs/articles
-          echo "✅ 步骤3：文章目录创建成功，docs目录内容："
-          ls -la ./docs/
+          echo "✅ 文章目录创建成功"
+        continue-on-error: false
 
-      - name: 4. 安装必要依赖（BeautifulSoup，仅一次）
+      - name: 4. 从GitHub安装csdn2md（绕开npm 404）
         run: |
-          echo "🚀 步骤4：安装网页解析依赖"
-          pip install --upgrade pip
-          pip install beautifulsoup4
-          echo "✅ 依赖安装成功"
+          git clone https://github.com/zuoxiaobai/csdn2md.git /tmp/csdn2md
+          cd /tmp/csdn2md
+          npm install -g .
+          csdn2md --version
+          echo "✅ 同步工具安装成功"
+        continue-on-error: false
 
-      - name: 5. 执行CSDN同步脚本（核心，全日志，零第三方包）
+      - name: 5. 拉取CSDN文章（带Cookie+详细日志）
+        env:
+          CSDN_USERNAME: weixin_42390585
+          CSDN_COOKIE: ${{ secrets.CSDN_COOKIE }}
         run: |
-          echo "🚀 步骤5：开始执行同步脚本，CSDN用户名：weixin_42390585"
-          # 原生Python脚本，完全不依赖第三方工具，每一步都打日志
-          python << 'EOF'
-import os
-import requests
-from bs4 import BeautifulSoup
+          echo "🚀 拉取CSDN文章，用户名：$CSDN_USERNAME"
+          csdn2md -u $CSDN_USERNAME -c "$CSDN_COOKIE" -v -o ./docs/articles
+          echo "✅ 文章拉取完成"
+        continue-on-error: false
 
-# 配置（你的信息已填好，不用改）
-CSDN_USERNAME = "weixin_42390585"
-OUTPUT_DIR = "./docs/articles"
-os.makedirs(OUTPUT_DIR, exist_ok=True)
-
-# 模拟浏览器请求头，降低反爬概率
-headers = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-}
-
-print(f"\n🔍 1. 开始拉取CSDN用户【{CSDN_USERNAME}】的文章列表")
-# 拉取文章列表（先拉第1页，测试用，快速跑通）
-list_url = f"https://blog.csdn.net/{CSDN_USERNAME}/article/list"
-list_response = requests.get(list_url, headers=headers, timeout=10)
-print(f"📡 文章列表请求状态码：{list_response.status_code}")
-
-if list_response.status_code != 200:
-    print(f"❌ 拉取文章列表失败！状态码：{list_response.status_code}")
-    print(f"📝 响应内容前500字符：{list_response.text[:500]}")
-    exit(1)
-
-# 解析文章列表
-soup = BeautifulSoup(list_response.text, "html.parser")
-articles = soup.select(".article-item-box")
-print(f"✅ 成功拉取到 {len(articles)} 篇文章")
-
-# 只拉取1篇文章测试，避免耗时，跑通后再改全量
-for i, article in enumerate(articles[:1]):
-    title_tag = article.select_one("h4 a")
-    if not title_tag:
-        print(f"❌ 第{i+1}篇文章标题解析失败，跳过")
-        continue
-    title = title_tag.get_text(strip=True)
-    article_url = title_tag["href"]
-    print(f"\n📝 2. 正在拉取第{i+1}篇文章：【{title}】，链接：{article_url}")
-
-    # 拉取文章详情
-    article_response = requests.get(article_url, headers=headers, timeout=10)
-    print(f"📡 文章【{title}】请求状态码：{article_response.status_code}")
-
-    if article_response.status_code != 200:
-        print(f"❌ 拉取文章【{title}】失败，跳过")
-        print(f"📝 响应内容前500字符：{article_response.text[:500]}")
-        continue
-
-    # 解析文章内容
-    article_soup = BeautifulSoup(article_response.text, "html.parser")
-    content_tag = article_soup.select_one("#content_views")
-    if not content_tag:
-        print(f"❌ 文章【{title}】内容解析失败，跳过")
-        continue
-    content = content_tag.get_text("\n", strip=True)
-
-    # 保存为Markdown文件（处理特殊字符，避免文件名错误）
-    safe_title = title.replace("/", "_").replace("\\", "_").replace(":", "_").replace("*", "_")
-    file_path = os.path.join(OUTPUT_DIR, f"{safe_title}.md")
-    with open(file_path, "w", encoding="utf-8") as f:
-        f.write(f"# {title}\n\n{content}")
-    print(f"✅ 文章【{title}】保存成功，路径：{file_path}")
-
-print("\n🎉 同步脚本执行完成！")
-EOF
-
-      - name: 6. 提交更新到GitHub（打印变更日志）
+      - name: 6. 提交更新
         run: |
           git config --global user.name "auto-sync"
           git config --global user.email "auto@github.com"
-          echo "✅ 步骤6：Git配置完成，当前仓库状态："
-          git status
           git add .
-          echo "✅ 已添加所有文件，变更统计："
-          git diff --cached --stat
-          # 无变更自动跳过，避免commit报错
           if git diff --cached --quiet; then
-            echo "✅ 无新文章，无需提交"
+            echo "✅ 无新文章，跳过提交"
             exit 0
           fi
-          git commit -m "同步CSDN最新文章（调试版）"
+          git commit -m "同步CSDN最新文章"
           git push
-          echo "✅ 提交并推送成功！"
+          echo "✅ 提交成功"
+        continue-on-error: false
