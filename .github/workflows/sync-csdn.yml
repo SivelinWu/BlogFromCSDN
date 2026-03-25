@@ -38,7 +38,8 @@ jobs:
 
       - name: 安装依赖
         run: |
-          pip install requests beautifulsoup4 html2text
+          # curl_cffi 模拟浏览器 TLS 指纹，避免 CSDN/Cloudflare 对机房 IP 返回 521
+          pip install "curl_cffi>=0.7" beautifulsoup4 html2text
 
       - name: 执行同步脚本
         run: |
@@ -50,12 +51,15 @@ jobs:
           import xml.etree.ElementTree as ET
 
           import html2text
-          import requests
+          from curl_cffi import requests
           from bs4 import BeautifulSoup
 
           CSDN_USERNAME = os.environ.get("CSDN_USERNAME", "").strip()
           OUTPUT_DIR = os.environ["OUTPUT_DIR"]
           MAX_ARTICLES = int(os.environ.get("MAX_ARTICLES", "30"))
+          # 逗号分隔，依次尝试（应对部分指纹在 CSDN 侧被拦）
+          _imps = os.environ.get("CURL_CFFI_IMPERSONATE", "chrome120,chrome116,edge101")
+          IMPERSONATE_CANDIDATES = [x.strip() for x in _imps.split(",") if x.strip()]
 
           if not CSDN_USERNAME:
               print("ERROR: 请设置环境变量 CSDN_USERNAME", file=sys.stderr)
@@ -66,16 +70,33 @@ jobs:
           session = requests.Session()
           session.headers.update(
               {
-                  "User-Agent": (
-                      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-                      "AppleWebKit/537.36 (KHTML, like Gecko) "
-                      "Chrome/122.0.0.0 Safari/537.36"
-                  ),
                   "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
                   "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
                   "Referer": f"https://blog.csdn.net/{CSDN_USERNAME}/",
               }
           )
+
+          def http_get(url: str, timeout: int = 60):
+              """模拟浏览器 TLS；521 多为 Cloudflare 拦截非浏览器请求。"""
+              last_err = None
+              for imp in IMPERSONATE_CANDIDATES:
+                  for attempt in range(1, 4):
+                      try:
+                          r = session.get(url, timeout=timeout, impersonate=imp)
+                          if r.status_code in (521, 403, 503, 502):
+                              print(f"  [{imp}] HTTP {r.status_code}，重试 {attempt}/3 …")
+                              time.sleep(2.5 * attempt)
+                              continue
+                          r.raise_for_status()
+                          return r
+                      except Exception as e:
+                          last_err = e
+                          print(f"  [{imp}] 异常 {attempt}/3:", e)
+                          time.sleep(2.0 * attempt)
+                  print(f"  指纹 {imp} 未成功，换下一浏览器指纹 …")
+              if last_err:
+                  raise last_err
+              raise RuntimeError("http_get failed: " + url)
 
           def slug_filename(title: str, article_id: str) -> str:
               safe = re.sub(r'[<>:"/\\|?*\n\r\t]', "_", title).strip()
@@ -89,8 +110,7 @@ jobs:
               rss_url = f"https://blog.csdn.net/{CSDN_USERNAME}/rss/list"
               items = []
               try:
-                  r = session.get(rss_url, timeout=45)
-                  r.raise_for_status()
+                  r = http_get(rss_url, timeout=45)
                   root = ET.fromstring(r.content)
                   ch = root.find("channel")
                   if ch is not None:
@@ -109,9 +129,8 @@ jobs:
                   return items
 
               list_url = f"https://blog.csdn.net/{CSDN_USERNAME}/article/list"
-              resp = session.get(list_url, timeout=45)
+              resp = http_get(list_url, timeout=45)
               print("列表页状态码:", resp.status_code)
-              resp.raise_for_status()
               soup = BeautifulSoup(resp.text, "html.parser")
               boxes = soup.select("div.article-item-box")
               print("列表页 article-item-box 数:", len(boxes))
@@ -147,8 +166,7 @@ jobs:
           for title, url, article_id in articles[:MAX_ARTICLES]:
               print("下载:", title[:60], "...", sep="")
               try:
-                  art = session.get(url, timeout=60)
-                  art.raise_for_status()
+                  art = http_get(url, timeout=60)
               except Exception as e:
                   print("  跳过（请求失败）:", e)
                   continue
