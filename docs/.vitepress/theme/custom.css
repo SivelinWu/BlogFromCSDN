@@ -111,6 +111,18 @@ body {
   max-width: var(--vp-aside-width);
 }
 
+/* Prevent long URLs from overflowing cards */
+.vp-doc a,
+.blogCardExcerpt a {
+  word-break: break-word;
+  overflow-wrap: break-word;
+}
+
+/* Article list page: full width content when sidebar hidden */
+.VPDoc:has(.blogList) .content-container {
+  max-width: 100%;
+}
+
 @media (max-width: 960px) {
   .VPDoc .content-container {
     padding: 20px 18px;

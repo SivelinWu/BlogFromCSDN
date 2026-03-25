@@ -24,7 +24,7 @@ const articles = computed(() => {
       </div>
     </div>
 
-    <div class="blogListMasonry">
+    <div class="blogListColumn">
       <a
         v-for="a in articles"
         :key="a.link"
@@ -70,22 +70,27 @@ const articles = computed(() => {
   box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.10);
 }
 
-/* Masonry via columns: looks like CSDN waterfall */
-.blogListMasonry {
-  column-gap: 14px;
-  column-count: 2;
+/* Single column list, centered, 70% width */
+.blogList {
+  max-width: 70%;
+  margin: 0 auto;
 }
 @media (max-width: 900px) {
-  .blogListMasonry {
-    column-count: 1;
+  .blogList {
+    max-width: 100%;
   }
 }
 
+.blogListColumn {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
 .blogCard {
-  display: inline-block;
+  display: block;
   width: 100%;
-  break-inside: avoid;
-  margin: 0 0 14px;
+  margin: 0;
   padding: 14px 14px 13px;
   border-radius: 16px;
   border: 1px solid rgba(15, 23, 42, 0.10);
@@ -112,6 +117,8 @@ const articles = computed(() => {
   color: var(--vp-c-text-2);
   line-height: 1.65;
   font-size: 14px;
+  word-break: break-word;
+  overflow-wrap: break-word;
 }
 .blogCardMeta {
   display: flex;
