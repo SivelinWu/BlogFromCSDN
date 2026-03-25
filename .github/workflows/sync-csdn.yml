@@ -1,0 +1,36 @@
+name: 同步CSDN文章到博客
+on:
+  schedule:
+    - cron: '0 */6 * * *'  # 每6小时自动同步
+  workflow_dispatch:      # 支持手动触发
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 拉取仓库代码
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false  # 修复权限问题
+
+      - name: 配置Python环境
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: 安装CSDN同步工具（稳定维护版）
+        run: |
+          python -m pip install --upgrade pip
+          pip install csdn2markdown
+
+      - name: 拉取CSDN所有文章（你的用户名已填好）
+        run: csdn2markdown -u weixin_42390585 -o ./docs/articles
+
+      - name: 提交更新到GitHub
+        run: |
+          git config --global user.name "auto-sync"
+          git config --global user.email "auto@github.com"
+          git add .
+          git commit -m "同步CSDN最新文章" || exit 0
+          git push
