@@ -1,0 +1,135 @@
+# [测试技术] AI自动化测试-TestSprite的实践
+
+> 原文: https://blog.csdn.net/weixin_42390585/article/details/157260030
+
+> *原创内容，未获授权禁止转载、转发、抄袭。
+##  一、TestSprite是什么？
+TestSprite 是一款由 AI 驱动的全自动软件测试平台，它能自主完成从测试计划生成、测试代码编写到执行测试和生成报告的完整测试流程，大幅减少人工干预，特别适合小型开发团队和 AI 编程场景。号称专为现代AI生成的程序/代码打造的：负责测试、修复和验证你的软件的AI agent。
+传送门：<https://www.testsprite.com/>
+##  二、核心功能
+## **01**
+###### **智能测试生成**
+**自动解析需求** ：通过 API 文档、URL 或 PRD 快速理解应用功能范围 **全面测试覆盖** ：生成涵盖功能测试、边界测试、安全测试等的完整测试套件 **AI 驱动测试用例** ：不仅覆盖基础功能，还能智能识别并测试复杂边缘情况 | 
+## **02**
+###### 代码自动生成与执行
+**测试脚本自动编写** ：基于分析结果生成易读的测试代码 (如Python/Playwright) **云端并行执行** ：在隔离环境中高效运行测试，避免污染开发环境 **实时交互可视化** ：可观看 AI 像真实用户一样操作应用 (点击按钮、填写表单等)  
+---|---  
+## **03**
+###### 
+###### 智能调试与分析
+**精准问题定位** ：不仅报告错误，还能分析失败原因并提供修复建议 **自动修复推荐** ：生成代码补丁，将 AI 生成代码的功能实现率从 42% 提升至 93% **测试覆盖率分析** ：直观展示测试覆盖情况，识别未测试区域 | 
+## 04
+###### MCP Server (TestSprite 2.0 核心功能)
+**Model Context Protocol 服务器** ，专为 AI 编程设计的革命性集成： IDE 深度集成：与 Cursor 等 AI 编码工具无缝协作，形成 "编码 - 测试 - 修复" 闭环 **意图理解** ：直接从产品需求文档理解开发意图，确保 AI 生成代码符合预期一键测试：在 IDE 中只需简单指令就能启动全面测试  
+---|---  
+## 三、如何使用？
+1.访问 TestSprite 官网，注册登录，免费试用版（需绑定支付方式）
+2.新建 API key，集成至 Cursor
+![](https://i-blog.csdnimg.cn/direct/672529ca5bb54d17ae14ae229f64927b.png)
+3.在 Cursor 的 AI 聊天框输入：**使用 TestSprite 测试这个项目** 。
+在浏览器打开的配置页面，如端口，登录账号/token（如果需要的话），还有提供一份 PRD
+![](https://i-blog.csdnimg.cn/direct/af70d10913b64363b7235829b06e4607.png)
+然后泡杯茶看 TestSprite 表演就行了~~（如果 AI 执行任务选的是询问方式，还有多次点击执行的步骤）
+**> >表演开始：**
+  * 首先，它会阅读项目的源代码+PRD，理解项目，并生成代码的摘要，即梳理的代码的功能![](https://i-blog.csdnimg.cn/direct/87fd2e5a10064b8e82e03819c71f2b2d.png)
+
+
+部分代码摘要截取：
+    
+    {
+      "tech_stack": [
+        "Python",
+        "FastAPI",
+        "MySQL",
+        "LangChain",
+        "LangServe",
+        "JWT",
+        "bcrypt",
+        "xmind",
+        "Selenium",
+        "Uvicorn"
+      ],
+      "features": [
+        {
+          "name": "用户登录",
+          "description": "用户登录接口，验证用户名和密码，返回 JWT token",
+          "files": ["app/auth/router.py", "app/auth/utils.py"],
+          "api_doc": {
+            "path": "/api/auth/login",
+            "method": "POST",
+            "summary": "用户登录",
+            "requestBody": {
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "properties": {
+                      "username": {
+                        "type": "string",
+                        "description": "用户名"
+                      },
+                      "password": {
+                        "type": "string",
+                        "description": "密码"
+                      }
+                    },
+                    "required": ["username", "password"]
+                  }
+                }
+              }
+            },
+            "responses": {
+              "200": {
+                "description": "登录成功",
+                "content": {
+                  "application/json": {
+                    "schema": {
+                      "type": "object",
+                      "properties": {
+                        "access_token": {"type": "string"},
+                        "token_type": {"type": "string"},
+                        "nick_name": {"type": "string"}
+                      }
+                    }
+                  }
+                }
+              },
+              "401": {
+                "description": "账号或密码错误"
+              },
+              "403": {
+                "description": "账号已停用"
+              }
+            }
+          }
+        }
+如果是后端项目，代码摘要会按接口梳理；如果是前端项目，则按页面梳理。
+  * 然后会根据摘要梳理的功能点，生成测试计划（测试用例）![](https://i-blog.csdnimg.cn/direct/3b869d5e3f814b6faed84951e36b558d.png)
+
+
+  * 然后根据测试计划，生成并执行测试，这部分任务都会在**云端并行执行**
+
+
+等待一会儿执行完毕后，会在本地测试目录生成测试脚本和测试报告（测试脚本和原始报告是云端生成的，本地还会继续生成一份阅读性更好的报告）
+如果是前端项目，会生成 playwright 的脚本来执行 UI 测试；如果是后端项目，则会通过 python 的 request 库调用接口，进行接口测试。
+接口的测试脚本截取：
+![](https://i-blog.csdnimg.cn/direct/1cce435d15884bea8555075549cba814.png)
+前端页面测试的脚本：
+![](https://i-blog.csdnimg.cn/direct/2cd41ea3d1dd488f885bb919e6f48888.png)
+测试报告截图：
+![](https://i-blog.csdnimg.cn/direct/e6b4979c12de493d84aff1d473f833e1.png)
+值得一说的是，如果是前端项目，在云端还能看到执行的录像，方便回溯查询执行时遇到的问题。
+录像视频：
+![](https://i-blog.csdnimg.cn/direct/902aa9d183c64a55aa8306d954e3d0c8.png)
+##  四、总结 
+今年 AI 在软件行业大爆发，几乎每个月都有突破性的产品诞生。在编码方面，我们已经见到这种跨越式进步和变化，但在测试这个领域，一直没有看到一个比较成熟和优秀的工具或应用。
+今年我们团队也在这方面做了一些探索和实践，围绕 AI 构建了用例助手、playwright 脚本生成等工具，目前看和 TestSprite 这个工具的想法可谓不谋而合，而它实现了从**代码-用例-执行-报告** 的链路打通，十分值得我们学习和借鉴。结合当前工作来看，TestSprite可以在开发自测，冒烟测试等阶段发挥一定价值。
+总结来说，TestSprite 有几个优点：
+> 1、和 cursor 的集成，支持调用 MCP；
+> 2、稳定的执行和相对全面的用例覆盖；
+> 3、云端执行，并行执行，进一步提高了效率。
+也有不足：
+> 1、代码和敏感信息的安全性问题；
+> 2、测试过程的数据高度依赖 TestSprite 平台；
+> 3、不便宜的订阅费（$69/月）
+接下来我们需要进一步深度研究和使用这个工具，进一步发现其潜在的可能以及与我们当前工作可以结合的部分。所有的测试工程师，必须更加全面更加积极地拥抱 AI。
