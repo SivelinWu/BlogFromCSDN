@@ -3,6 +3,7 @@
 > 原文: https://blog.csdn.net/weixin_42390585/article/details/158495878
 
 > *原创内容，未获授权禁止转载、转发、抄袭。
+
 ### 一、什么是Midscene.js
 UI自动化领域长期受困于“定位元素-编写指令-调试适配”的繁琐流程，CSS选择器、XPath定位易因页面微调失效，维护成本高。Midscene.js以“Joyful Automation by AI”为核心，是AI视觉语言模型驱动的全平台UI自动化SDK，核心优势是让开发者用自然语言就能操控界面。
 Midscene.js核心是“视觉驱动全平台自动化工具”，不依赖DOM解析，通过截图识别UI元素、完成交互。覆盖Web、Android、iOS及自定义界面，彻底解决传统自动化跨平台适配难、定位不稳定的痛点。

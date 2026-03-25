@@ -3,6 +3,7 @@
 > 原文: https://blog.csdn.net/weixin_42390585/article/details/149018756
 
 > *原创内容，未获授权禁止转载、转发、抄袭。
+
 Jmeter中有一个很好用的工具——BeanShell脚本。测试时可以在前置和后置脚本中通过BeanShell来帮助获取参数，对参数做加密解密等处理，还能帮助更加灵活的做断言。  
 下面分享几段实用的BeanShell供参考：
     

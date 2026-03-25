@@ -3,6 +3,7 @@
 > 原文: https://blog.csdn.net/weixin_42390585/article/details/149332887
 
 > *原创内容，未获授权禁止转载、转发、抄袭。
+
 ### CLI安装
 官方安装教程[设置 Claude Code - Anthropic](https://docs.anthropic.com/zh-CN/docs/claude-code/setup "设置 Claude Code - Anthropic")
 注意如果用了`nvm`等`Nodejs`版本管理工具需要的操作（全局单一版本忽略）

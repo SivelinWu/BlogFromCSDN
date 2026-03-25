@@ -3,6 +3,7 @@
 > 原文: https://blog.csdn.net/weixin_42390585/article/details/156185782
 
 > *原创内容，未获授权禁止转载、转发、抄袭。
+
 结合 Playwright 和 Node.js 进行 H5 页面兼容性测试，可充分利用 Playwright 的设备模拟能力和 Node.js 的脚本自动化优势，实现跨设备、跨浏览器的高效测试。
 ### 一、核心优势与准备工作
 #### 核心优势
