@@ -3,6 +3,7 @@
     "docs:dev": "vitepress dev docs",
     "docs:build": "vitepress build docs",
     "docs:preview": "vitepress preview docs",
+    "prebuild": "node scripts/ensure_cdn_images.mjs",
     "build": "npm run docs:build"
   },
   "dependencies": {

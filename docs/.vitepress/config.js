@@ -42,12 +42,32 @@ function buildSidebarItems() {
 export default {
   title: "我的博客",
   description: "CSDN文章自动同步",
+  cleanUrls: true,
+  lastUpdated: true,
+  markdown: {
+    theme: { light: "github-light", dark: "github-dark" },
+  },
+  head: [
+    ["meta", { name: "theme-color", content: "#0b1220" }],
+    ["meta", { name: "color-scheme", content: "dark light" }],
+  ],
   themeConfig: {
+    siteTitle: "我的博客",
+    nav: [
+      { text: "首页", link: "/" },
+      { text: "全部文章", link: "/articles/" },
+    ],
     sidebar: [
       {
         text: "所有文章",
         items: buildSidebarItems(),
       },
     ],
+    footer: {
+      message: "内容同步自 CSDN，版权归原作者所有。",
+      copyright: `Copyright © ${new Date().getFullYear()} 我的博客`,
+    },
+    outline: [2, 3],
+    socialLinks: [{ icon: "github", link: "https://github.com/SivelinWu/BlogFromCSDN" }],
   },
 };
