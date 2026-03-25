@@ -115,17 +115,16 @@ export default {
   themeConfig: {
     siteTitle: "我的博客",
     nav: [],
-    sidebar: [
-      {
-        text: "所有文章",
-        items: [{ text: "文章列表", link: "/articles/" }, ...buildSidebarItems()],
-      },
-    ],
+    sidebar: false,
     footer: {
       message: "内容同步自 CSDN，版权归原作者所有。",
       copyright: `Copyright © ${new Date().getFullYear()} 我的博客`,
     },
-    outline: [2, 3],
+    outline: false,
     socialLinks: [],
+    docFooter: {
+      prev: false,
+      next: false,
+    },
   },
 };

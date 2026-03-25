@@ -123,6 +123,17 @@ body {
   max-width: 100%;
 }
 
+/* Wider article detail pages (no sidebar) */
+.VPDoc .content-container {
+  max-width: 95%;
+}
+
+@media (min-width: 1440px) {
+  .VPDoc .content-container {
+    max-width: 1400px;
+  }
+}
+
 @media (max-width: 960px) {
   .VPDoc .content-container {
     padding: 20px 18px;

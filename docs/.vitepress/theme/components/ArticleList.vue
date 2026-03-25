@@ -70,9 +70,9 @@ const articles = computed(() => {
   box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.10);
 }
 
-/* Single column list, centered, 70% width */
+/* Single column list, centered, wider width */
 .blogList {
-  max-width: 70%;
+  max-width: 95%;
   margin: 0 auto;
 }
 @media (max-width: 900px) {
