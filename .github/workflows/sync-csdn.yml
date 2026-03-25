@@ -4,6 +4,19 @@ name: CSDN同步（最终完美版）
 
 on:
   workflow_dispatch:
+    inputs:
+      max_articles:
+        description: "本次最多同步多少篇文章正文"
+        required: false
+        default: "200"
+      max_list_pages:
+        description: "列表分页最多抓取多少页（用于补齐 RSS 的不足）"
+        required: false
+        default: "50"
+      max_images_per_article:
+        description: "每篇文章最多下载多少张图片到本地"
+        required: false
+        default: "60"
 
 permissions:
   contents: write
@@ -20,11 +33,11 @@ jobs:
       CSDN_USERNAME: weixin_42390585
       OUTPUT_DIR: docs/articles
       # 单次下载正文的最大篇数（列表仍会多页抓取直到凑够或没有更多页）
-      MAX_ARTICLES: "200"
+      MAX_ARTICLES: ${{ inputs.max_articles }}
       # 列表分页上限（CSDN 每页约 40 篇）；RSS 只有约 20 条，要全文需翻页
-      MAX_LIST_PAGES: "50"
+      MAX_LIST_PAGES: ${{ inputs.max_list_pages }}
       # 每篇文章最多下载多少张图片（避免仓库体积爆炸）
-      MAX_IMAGES_PER_ARTICLE: "60"
+      MAX_IMAGES_PER_ARTICLE: ${{ inputs.max_images_per_article }}
     steps:
       - name: 拉取代码
         uses: actions/checkout@v4
