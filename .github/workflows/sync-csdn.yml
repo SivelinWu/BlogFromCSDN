@@ -1,18 +1,32 @@
+# CSDN 博客同步到仓库 docs/articles（workflow_dispatch 手动触发）
+# 仓库需开启：Settings → Actions → General → Workflow permissions → Read and write
 name: CSDN同步（最终完美版）
+
 on:
   workflow_dispatch:
 
 permissions:
   contents: write
 
+concurrency:
+  group: csdn-sync-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   sync:
     runs-on: ubuntu-latest
+    env:
+      # 修改为你的 CSDN 用户名（blog.csdn.net/后面的路径）
+      CSDN_USERNAME: weixin_42390585
+      OUTPUT_DIR: docs/articles
+      # 单次同步最大篇数，避免超时
+      MAX_ARTICLES: "30"
     steps:
       - name: 拉取代码
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: 配置Python
         uses: actions/setup-python@v5
@@ -20,61 +34,149 @@ jobs:
           python-version: "3.11"
 
       - name: 创建文章目录
-        run: mkdir -p ./docs/articles
+        run: mkdir -p "./${{ env.OUTPUT_DIR }}"
 
       - name: 安装依赖
         run: |
-          pip install requests beautifulsoup4
+          pip install requests beautifulsoup4 html2text
 
       - name: 执行同步脚本
         run: |
-          python << 'EOF'
-import os
-import requests
-from bs4 import BeautifulSoup
+          python << 'PYEOF'
+          import os
+          import re
+          import sys
+          import time
+          import xml.etree.ElementTree as ET
 
-CSDN_USERNAME = "weixin_42390585"
-OUTPUT_DIR = "./docs/articles"
-os.makedirs(OUTPUT_DIR, exist_ok=True)
+          import html2text
+          import requests
+          from bs4 import BeautifulSoup
 
-headers = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
-}
+          CSDN_USERNAME = os.environ.get("CSDN_USERNAME", "").strip()
+          OUTPUT_DIR = os.environ["OUTPUT_DIR"]
+          MAX_ARTICLES = int(os.environ.get("MAX_ARTICLES", "30"))
 
-# 拉取文章列表
-list_url = f"https://blog.csdn.net/{CSDN_USERNAME}/article/list"
-resp = requests.get(list_url, headers=headers)
-print("列表状态码:", resp.status_code)
+          if not CSDN_USERNAME:
+              print("ERROR: 请设置环境变量 CSDN_USERNAME", file=sys.stderr)
+              sys.exit(1)
 
-soup = BeautifulSoup(resp.text, "html.parser")
-articles = soup.select("div.article-item-box")
-print("找到文章数:", len(articles))
+          os.makedirs(OUTPUT_DIR, exist_ok=True)
 
-# 只下载1篇测试
-for item in articles[:1]:
-    a = item.select_one("h4 a")
-    if not a:
-        continue
-    title = a.get_text(strip=True)
-    url = a["href"]
-    print("正在下载:", title)
+          session = requests.Session()
+          session.headers.update(
+              {
+                  "User-Agent": (
+                      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                      "AppleWebKit/537.36 (KHTML, like Gecko) "
+                      "Chrome/122.0.0.0 Safari/537.36"
+                  ),
+                  "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+                  "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
+                  "Referer": f"https://blog.csdn.net/{CSDN_USERNAME}/",
+              }
+          )
 
-    art = requests.get(url, headers=headers)
-    s = BeautifulSoup(art.text, "html.parser")
-    content = s.select_one("#content_views")
-    if not content:
-        continue
+          def slug_filename(title: str, article_id: str) -> str:
+              safe = re.sub(r'[<>:"/\\|?*\n\r\t]', "_", title).strip()
+              safe = safe[:120] if len(safe) > 120 else safe
+              if not safe:
+                  safe = "untitled"
+              return f"{article_id}_{safe}.md"
 
-    safe = title.replace("/","_").replace("\\","_")
-    with open(f"{OUTPUT_DIR}/{safe}.md", "w", encoding="utf-8") as f:
-        f.write(f"# {title}\n\n{content.get_text()}")
-    print("保存成功")
-EOF
+          def fetch_article_list():
+              """优先 RSS（CI 上更不易被拦）；失败再尝试列表页 HTML。"""
+              rss_url = f"https://blog.csdn.net/{CSDN_USERNAME}/rss/list"
+              items = []
+              try:
+                  r = session.get(rss_url, timeout=45)
+                  r.raise_for_status()
+                  root = ET.fromstring(r.content)
+                  ch = root.find("channel")
+                  if ch is not None:
+                      for it in ch.findall("item"):
+                          t = (it.findtext("title") or "").strip()
+                          link = (it.findtext("link") or "").strip()
+                          if t and link and "article/details" in link:
+                              m = re.search(r"/article/details/(\d+)", link)
+                              aid = m.group(1) if m else re.sub(r"\W+", "_", link)[-20:]
+                              items.append((t, link, aid))
+                  print("RSS 条目数:", len(items))
+              except Exception as e:
+                  print("RSS 解析失败:", e)
+
+              if items:
+                  return items
+
+              list_url = f"https://blog.csdn.net/{CSDN_USERNAME}/article/list"
+              resp = session.get(list_url, timeout=45)
+              print("列表页状态码:", resp.status_code)
+              resp.raise_for_status()
+              soup = BeautifulSoup(resp.text, "html.parser")
+              boxes = soup.select("div.article-item-box")
+              print("列表页 article-item-box 数:", len(boxes))
+              for box in boxes:
+                  a = box.select_one("h4 a[href*='article/details']")
+                  if not a or not a.get("href"):
+                      continue
+                  link = a["href"].split("?")[0]
+                  title = a.get_text(strip=True)
+                  m = re.search(r"/article/details/(\d+)", link)
+                  aid = m.group(1) if m else str(abs(hash(link)) % 10**9)
+                  if title and link:
+                      items.append((title, link, aid))
+              return items
+
+          def extract_content_html(soup: BeautifulSoup):
+              node = soup.select_one("#content_views")
+              if node:
+                  return node
+              return soup.select_one("#article_content") or soup.select_one("div.article_content")
+
+          h2t = html2text.HTML2Text()
+          h2t.body_width = 0
+          h2t.ignore_links = False
+          h2t.single_line_break = True
+
+          articles = fetch_article_list()
+          if not articles:
+              print("ERROR: 未获取到任何文章链接（可能被 WAF 拦截或用户名错误）", file=sys.stderr)
+              sys.exit(1)
+
+          ok = 0
+          for title, url, article_id in articles[:MAX_ARTICLES]:
+              print("下载:", title[:60], "...", sep="")
+              try:
+                  art = session.get(url, timeout=60)
+                  art.raise_for_status()
+              except Exception as e:
+                  print("  跳过（请求失败）:", e)
+                  continue
+              s = BeautifulSoup(art.text, "html.parser")
+              content = extract_content_html(s)
+              if not content:
+                  print("  跳过（未找到正文节点 #content_views / #article_content）")
+                  continue
+              body_md = h2t.handle(str(content))
+              path = os.path.join(OUTPUT_DIR, slug_filename(title, article_id))
+              with open(path, "w", encoding="utf-8") as f:
+                  f.write(f"# {title}\n\n")
+                  f.write(f"> 原文: {url}\n\n")
+                  f.write(body_md)
+              ok += 1
+              time.sleep(0.4)
+
+          print("成功写入:", ok, "篇")
+          PYEOF
 
       - name: 提交到GitHub
         run: |
-          git config --global user.name "auto"
-          git config --global user.email "auto@auto.com"
-          git add .
-          git commit -m "sync" || exit 0
-          git push
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- "${{ env.OUTPUT_DIR }}"
+          if git diff --staged --quiet; then
+            echo "无变更，跳过提交"
+            exit 0
+          fi
+          git commit -m "chore: sync CSDN articles [skip ci]"
+          git push origin "HEAD:${GITHUB_REF_NAME}"
