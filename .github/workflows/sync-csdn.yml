@@ -19,8 +19,10 @@ jobs:
       # 修改为你的 CSDN 用户名（blog.csdn.net/后面的路径）
       CSDN_USERNAME: weixin_42390585
       OUTPUT_DIR: docs/articles
-      # 单次同步最大篇数，避免超时
-      MAX_ARTICLES: "30"
+      # 单次下载正文的最大篇数（列表仍会多页抓取直到凑够或没有更多页）
+      MAX_ARTICLES: "200"
+      # 列表分页上限（CSDN 每页约 40 篇）；RSS 只有约 20 条，要全文需翻页
+      MAX_LIST_PAGES: "50"
     steps:
       - name: 拉取代码
         uses: actions/checkout@v4
@@ -56,7 +58,8 @@ jobs:
 
           CSDN_USERNAME = os.environ.get("CSDN_USERNAME", "").strip()
           OUTPUT_DIR = os.environ["OUTPUT_DIR"]
-          MAX_ARTICLES = int(os.environ.get("MAX_ARTICLES", "30"))
+          MAX_ARTICLES = int(os.environ.get("MAX_ARTICLES", "200"))
+          MAX_LIST_PAGES = int(os.environ.get("MAX_LIST_PAGES", "50"))
           # 逗号分隔，依次尝试（应对部分指纹在 CSDN 侧被拦）
           _imps = os.environ.get("CURL_CFFI_IMPERSONATE", "chrome120,chrome116,edge101")
           IMPERSONATE_CANDIDATES = [x.strip() for x in _imps.split(",") if x.strip()]
@@ -106,9 +109,17 @@ jobs:
               return f"{article_id}_{safe}.md"
 
           def fetch_article_list():
-              """优先 RSS（CI 上更不易被拦）；失败再尝试列表页 HTML。"""
+              """RSS 仅含最近约 20 条；与列表分页合并去重后才能拉全站。"""
+              seen_ids = set()
+              ordered = []
+
+              def add_one(title: str, link: str, aid: str) -> None:
+                  if not title or not link or aid in seen_ids:
+                      return
+                  seen_ids.add(aid)
+                  ordered.append((title, link, aid))
+
               rss_url = f"https://blog.csdn.net/{CSDN_USERNAME}/rss/list"
-              items = []
               try:
                   r = http_get(rss_url, timeout=45)
                   root = ET.fromstring(r.content)
@@ -120,31 +131,32 @@ jobs:
                           if t and link and "article/details" in link:
                               m = re.search(r"/article/details/(\d+)", link)
                               aid = m.group(1) if m else re.sub(r"\W+", "_", link)[-20:]
-                              items.append((t, link, aid))
-                  print("RSS 条目数:", len(items))
+                              add_one(t, link, aid)
+                  print("RSS 条目数（上限约 20，属 CSDN 限制）:", len(ordered))
               except Exception as e:
-                  print("RSS 解析失败:", e)
+                  print("RSS 解析失败（将仅依赖列表分页）:", e)
 
-              if items:
-                  return items
+              for page in range(1, MAX_LIST_PAGES + 1):
+                  list_url = f"https://blog.csdn.net/{CSDN_USERNAME}/article/list/{page}"
+                  resp = http_get(list_url, timeout=45)
+                  soup = BeautifulSoup(resp.text, "html.parser")
+                  boxes = soup.select("div.article-item-box")
+                  print(f"列表第 {page} 页 article-item-box 数:", len(boxes))
+                  if not boxes:
+                      break
+                  for box in boxes:
+                      a = box.select_one("h4 a[href*='article/details']")
+                      if not a or not a.get("href"):
+                          continue
+                      link = a["href"].split("?")[0]
+                      title = a.get_text(strip=True)
+                      m = re.search(r"/article/details/(\d+)", link)
+                      aid = m.group(1) if m else str(abs(hash(link)) % 10**9)
+                      add_one(title, link, aid)
+                  time.sleep(0.35)
 
-              list_url = f"https://blog.csdn.net/{CSDN_USERNAME}/article/list"
-              resp = http_get(list_url, timeout=45)
-              print("列表页状态码:", resp.status_code)
-              soup = BeautifulSoup(resp.text, "html.parser")
-              boxes = soup.select("div.article-item-box")
-              print("列表页 article-item-box 数:", len(boxes))
-              for box in boxes:
-                  a = box.select_one("h4 a[href*='article/details']")
-                  if not a or not a.get("href"):
-                      continue
-                  link = a["href"].split("?")[0]
-                  title = a.get_text(strip=True)
-                  m = re.search(r"/article/details/(\d+)", link)
-                  aid = m.group(1) if m else str(abs(hash(link)) % 10**9)
-                  if title and link:
-                      items.append((title, link, aid))
-              return items
+              print("合并去重后文章链接总数:", len(ordered))
+              return ordered
 
           def extract_content_html(soup: BeautifulSoup):
               node = soup.select_one("#content_views")
