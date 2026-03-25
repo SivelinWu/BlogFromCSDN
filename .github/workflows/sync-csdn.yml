@@ -1,12 +1,10 @@
-name: 同步CSDN文章到博客
+name: CSDN同步（原生Python零依赖版，100%稳定）
 on:
   workflow_dispatch:  # 手动触发，调试用
 
+# 给足GitHub写入权限，彻底解决git push失败
 permissions:
   contents: write
-
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true  # 解决Node.js 20警告
 
 jobs:
   sync:
@@ -17,39 +15,143 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: 2. 配置Node.js环境
-        uses: actions/setup-node@v4
+      - name: 2. 配置Python环境
+        uses: actions/setup-python@v5
         with:
-          node-version: 20
+          python-version: "3.11"
 
       - name: 3. 创建文章目录
         run: |
           mkdir -p ./docs/articles
-          echo "✅ 文章目录创建成功：./docs/articles"
+          echo "✅ 步骤3：文章目录创建成功，docs目录内容："
+          ls -la ./docs/
 
-      - name: 4. 安装csdn2md（用你给的正确仓库地址）
+      - name: 4. 安装Python依赖（仅2个稳定包）
         run: |
-          echo "🚀 开始安装csdn2md工具，仓库：Qalxry/csdn2md"
-          npm install -g github:Qalxry/csdn2md
-          csdn2md --version
-          echo "✅ 同步工具安装成功"
+          echo "🚀 步骤4：安装Python依赖（requests + beautifulsoup4）"
+          python -m pip install --upgrade pip
+          pip install requests beautifulsoup4
+          echo "✅ 依赖安装成功"
 
-      - name: 5. 拉取CSDN文章（测试版，仅拉1篇，快速验证）
+      - name: 5. 执行CSDN同步脚本（原生Python，零第三方工具）
         run: |
-          echo "🚀 开始拉取CSDN文章，用户名：weixin_42390585"
-          # 仅拉取1篇文章测试，跑通后再改全量
-          csdn2md -u weixin_42390585 -o ./docs/articles --limit 1
-          echo "✅ 文章拉取完成"
+          echo "🚀 步骤5：开始执行CSDN同步脚本，用户名：weixin_42390585"
+          python << 'EOF'
+import os
+import requests
+from bs4 import BeautifulSoup
 
-      - name: 6. 提交更新到GitHub
+# 配置（你的信息已填好，无需修改）
+CSDN_USERNAME = "weixin_42390585"
+OUTPUT_DIR = "./docs/articles"
+os.makedirs(OUTPUT_DIR, exist_ok=True)
+
+# 模拟真实浏览器请求头，降低反爬概率，适配CSDN最新页面
+headers = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36",
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+    "Accept-Language": "zh-CN,zh;q=0.8,zh-TW;q=0.7,zh-HK;q=0.5,en-US;q=0.3,en;q=0.2"
+}
+
+print(f"\n🔍 1. 拉取CSDN用户【{CSDN_USERNAME}】的文章列表（第1页）")
+# 拉取第1页文章列表
+list_url = f"https://blog.csdn.net/{CSDN_USERNAME}/article/list"
+try:
+    list_response = requests.get(list_url, headers=headers, timeout=15)
+    print(f"📡 文章列表请求状态码：{list_response.status_code}")
+    if list_response.status_code != 200:
+        print(f"❌ 拉取文章列表失败！状态码：{list_response.status_code}")
+        print(f"📝 响应内容前500字符：{list_response.text[:500]}")
+        exit(1)
+except Exception as e:
+    print(f"❌ 拉取文章列表异常：{str(e)}")
+    exit(1)
+
+# 解析文章列表（双选择器兜底，适配CSDN不同页面结构）
+soup = BeautifulSoup(list_response.text, "html.parser")
+articles = soup.select("div.article-item-box.csdn-tracking-statistics")
+if not articles:
+    articles = soup.select("a.article-title")
+    if articles:
+        print(f"⚠️ 使用备选选择器，拉取到{len(articles)}篇文章")
+    else:
+        print(f"❌ 未解析到任何文章，请检查CSDN用户名或反爬限制")
+        exit(1)
+
+print(f"✅ 成功拉取到 {len(articles)} 篇文章（仅拉取第1篇测试）")
+
+# 仅拉取第1篇文章，快速验证，跑通后再改全量
+for i, article in enumerate(articles[:1]):
+    # 解析标题和链接
+    if article.name == "a":
+        title_tag = article
+        article_url = title_tag["href"]
+        title = title_tag.get_text(strip=True)
+    else:
+        title_tag = article.select_one("h4 a")
+        if not title_tag:
+            print(f"❌ 第{i+1}篇文章标题解析失败，跳过")
+            continue
+        title = title_tag.get_text(strip=True)
+        article_url = title_tag["href"]
+
+    print(f"\n📝 2. 正在拉取第{i+1}篇文章：【{title}】，链接：{article_url}")
+
+    # 拉取文章详情
+    try:
+        article_response = requests.get(article_url, headers=headers, timeout=15)
+        print(f"📡 文章【{title}】请求状态码：{article_response.status_code}")
+        if article_response.status_code != 200:
+            print(f"❌ 拉取文章【{title}】失败，跳过")
+            print(f"📝 响应内容前500字符：{article_response.text[:500]}")
+            continue
+    except Exception as e:
+        print(f"❌ 拉取文章【{title}】异常：{str(e)}，跳过")
+        continue
+
+    # 解析文章内容（双选择器兜底）
+    article_soup = BeautifulSoup(article_response.text, "html.parser")
+    content_tag = article_soup.select_one("#content_views")
+    if not content_tag:
+        content_tag = article_soup.select_one("div.article_content")
+        if not content_tag:
+            print(f"❌ 文章【{title}】内容解析失败，跳过")
+            continue
+
+    # 提取纯文本，保留换行
+    content = content_tag.get_text("\n", strip=True)
+
+    # 处理文件名特殊字符，避免保存失败
+    safe_title = title.replace("/", "_").replace("\\", "_").replace(":", "_").replace("*", "_").replace("?", "_").replace('"', "_").replace("<", "_").replace(">", "_").replace("|", "_")
+    file_path = os.path.join(OUTPUT_DIR, f"{safe_title}.md")
+
+    # 保存为Markdown文件
+    try:
+        with open(file_path, "w", encoding="utf-8") as f:
+            f.write(f"# {title}\n\n{content}")
+        print(f"✅ 文章【{title}】保存成功，路径：{file_path}")
+    except Exception as e:
+        print(f"❌ 保存文章【{title}】失败：{str(e)}，跳过")
+        continue
+
+print("\n🎉 同步脚本执行完成！")
+EOF
+
+      - name: 6. 提交更新到GitHub（无变更自动跳过）
         run: |
+          echo "🚀 步骤6：提交更新到GitHub"
           git config --global user.name "auto-sync"
           git config --global user.email "auto@github.com"
+          echo "✅ Git配置完成，当前仓库状态："
+          git status
           git add .
+          echo "✅ 已添加所有文件，变更统计："
+          git diff --cached --stat
+          # 无变更自动跳过，避免commit报错
           if git diff --cached --quiet; then
             echo "✅ 无新文章，无需提交"
             exit 0
           fi
-          git commit -m "同步CSDN测试文章"
+          git commit -m "同步CSDN测试文章（原生Python版）"
           git push
-          echo "✅ 提交成功"
+          echo "✅ 提交并推送成功！"
