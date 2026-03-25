@@ -118,20 +118,14 @@ body {
   overflow-wrap: break-word;
 }
 
-/* Article list page: full width content when sidebar hidden */
+/* Article list page: 80% width */
 .VPDoc:has(.blogList) .content-container {
-  max-width: 100%;
+  max-width: 80%;
 }
 
-/* Wider article detail pages (no sidebar) */
+/* Wider article detail pages (no sidebar) - 80% width */
 .VPDoc .content-container {
-  max-width: 95%;
-}
-
-@media (min-width: 1440px) {
-  .VPDoc .content-container {
-    max-width: 1400px;
-  }
+  max-width: 80%;
 }
 
 @media (max-width: 960px) {
