@@ -23,6 +23,8 @@ jobs:
       MAX_ARTICLES: "200"
       # 列表分页上限（CSDN 每页约 40 篇）；RSS 只有约 20 条，要全文需翻页
       MAX_LIST_PAGES: "50"
+      # 每篇文章最多下载多少张图片（避免仓库体积爆炸）
+      MAX_IMAGES_PER_ARTICLE: "60"
     steps:
       - name: 拉取代码
         uses: actions/checkout@v4
@@ -50,6 +52,7 @@ jobs:
           import re
           import sys
           import time
+          import urllib.parse
           import xml.etree.ElementTree as ET
 
           import html2text
@@ -60,6 +63,7 @@ jobs:
           OUTPUT_DIR = os.environ["OUTPUT_DIR"]
           MAX_ARTICLES = int(os.environ.get("MAX_ARTICLES", "200"))
           MAX_LIST_PAGES = int(os.environ.get("MAX_LIST_PAGES", "50"))
+          MAX_IMAGES_PER_ARTICLE = int(os.environ.get("MAX_IMAGES_PER_ARTICLE", "60"))
           # 逗号分隔，依次尝试（应对部分指纹在 CSDN 侧被拦）
           _imps = os.environ.get("CURL_CFFI_IMPERSONATE", "chrome120,chrome116,edge101")
           IMPERSONATE_CANDIDATES = [x.strip() for x in _imps.split(",") if x.strip()]
@@ -69,6 +73,9 @@ jobs:
               sys.exit(1)
 
           os.makedirs(OUTPUT_DIR, exist_ok=True)
+          PUBLIC_DIR = os.path.join("docs", ".vitepress", "public")
+          CDN_DIR = os.path.join(PUBLIC_DIR, "cdn")
+          os.makedirs(CDN_DIR, exist_ok=True)
 
           session = requests.Session()
           session.headers.update(
@@ -164,6 +171,42 @@ jobs:
                   return node
               return soup.select_one("#article_content") or soup.select_one("div.article_content")
 
+          img_md_pattern = re.compile(r"!\[[^\]]*\]\((https?://[^)]+)\)")
+
+          def download_and_rewrite_images(article_id: str, markdown: str) -> str:
+              """
+              将 Markdown 中的远程图片下载到本地 public 目录，并替换为站内路径：
+              ![](https://i-blog.csdnimg.cn/direct/xxx.png) -> ![](/cdn/<article_id>/xxx.png)
+              """
+              urls = img_md_pattern.findall(markdown)
+              if not urls:
+                  return markdown
+
+              # 控制图片数量，避免仓库/构建超时
+              urls = urls[:MAX_IMAGES_PER_ARTICLE]
+              for img_url in urls:
+                  try:
+                      parsed = urllib.parse.urlparse(img_url)
+                      filename = os.path.basename(parsed.path)
+                      if not filename:
+                          filename = str(abs(hash(img_url)) % 10**9) + ".png"
+
+                      local_path = os.path.join(CDN_DIR, article_id, filename)
+                      local_url = f"/cdn/{article_id}/{filename}"
+
+                      if not os.path.exists(local_path):
+                          os.makedirs(os.path.dirname(local_path), exist_ok=True)
+                          r = http_get(img_url, timeout=60)
+                          with open(local_path, "wb") as f:
+                              f.write(r.content)
+
+                      # 替换所有同一张图的 markdown 引用
+                      markdown = markdown.replace(f"({img_url})", f"({local_url})")
+                  except Exception as e:
+                      print("  图片下载失败，跳过:", img_url, e)
+                      continue
+              return markdown
+
           h2t = html2text.HTML2Text()
           h2t.body_width = 0
           h2t.ignore_links = False
@@ -188,6 +231,7 @@ jobs:
                   print("  跳过（未找到正文节点 #content_views / #article_content）")
                   continue
               body_md = h2t.handle(str(content))
+              body_md = download_and_rewrite_images(article_id, body_md)
               path = os.path.join(OUTPUT_DIR, slug_filename(title, article_id))
               with open(path, "w", encoding="utf-8") as f:
                   f.write(f"# {title}\n\n")
