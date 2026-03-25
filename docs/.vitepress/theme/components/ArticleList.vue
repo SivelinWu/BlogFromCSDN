@@ -158,16 +158,17 @@ function formatDateFromId(id) {
   color: #9ca3af;
 }
 
-/* 瀑布流布局 */
+/* 单列布局 */
 .articles-waterfall {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
-  gap: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  max-width: 800px;
+  margin: 0 auto;
 }
 
 @media (max-width: 480px) {
   .articles-waterfall {
-    grid-template-columns: 1fr;
     gap: 16px;
   }
   
@@ -177,12 +178,6 @@ function formatDateFromId(id) {
   
   .blog-title {
     font-size: 28px;
-  }
-}
-
-@media (min-width: 1200px) {
-  .articles-waterfall {
-    grid-template-columns: repeat(3, 1fr);
   }
 }
 
@@ -230,6 +225,11 @@ function formatDateFromId(id) {
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+  text-decoration: none !important;
+}
+
+.article-card:hover .article-title {
+  text-decoration: none !important;
 }
 
 .article-excerpt {

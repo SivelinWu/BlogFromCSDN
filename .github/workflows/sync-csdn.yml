@@ -205,6 +205,77 @@ jobs:
 
               return angle_token_pattern.sub(repl, markdown)
 
+          def fix_csdn_quote_blocks(markdown: str) -> str:
+              """
+              CSDN 文章开头的版权声明引用块（如"*原创内容，未获授权禁止转载..."）
+              在 html2text 转换后，可能会把后续正文也错误地包含在引用中。
+              这个函数检测并修复这种情况：只保留真正的版权声明为引用，后续内容恢复正常。
+              """
+              lines = markdown.split('\n')
+              result = []
+              in_quote = False
+              quote_content = []
+              
+              # 版权声明关键词
+              copyright_keywords = ['原创', '未经授权', '禁止转载', '禁止转发', '禁止抄袭', '版权所有', '未经许可']
+              
+              for i, line in enumerate(lines):
+                  stripped = line.strip()
+                  
+                  # 检测引用行（以 > 开头）
+                  if stripped.startswith('>'):
+                      # 提取引用内容（去掉 > 和前面的空格）
+                      quote_text = re.sub(r'^>\s*', '', stripped)
+                      
+                      if not in_quote:
+                          # 开始新的引用块
+                          in_quote = True
+                          quote_content = [quote_text]
+                      else:
+                          # 继续当前引用块
+                          quote_content.append(quote_text)
+                  else:
+                      # 非引用行
+                      if in_quote:
+                          # 结束引用块，分析内容
+                          full_quote = '\n'.join(quote_content)
+                          
+                          # 检查是否是版权声明（包含关键词且长度较短，通常是1-2行）
+                          is_copyright = any(kw in full_quote for kw in copyright_keywords)
+                          is_short = len(full_quote) < 200 and len(quote_content) <= 3
+                          
+                          if is_copyright and is_short:
+                              # 保留版权声明为引用
+                              for qc in quote_content:
+                                  result.append(f'> {qc}')
+                              result.append('')  # 空行分隔
+                          else:
+                              # 不是版权声明，把内容转回普通文本
+                              for qc in quote_content:
+                                  result.append(qc)
+                          
+                          in_quote = False
+                          quote_content = []
+                      
+                      # 添加当前行
+                      if stripped or result:  # 保留空行，但避免开头空行
+                          result.append(line)
+              
+              # 处理文件结尾时未关闭的引用
+              if in_quote and quote_content:
+                  full_quote = '\n'.join(quote_content)
+                  is_copyright = any(kw in full_quote for kw in copyright_keywords)
+                  is_short = len(full_quote) < 200 and len(quote_content) <= 3
+                  
+                  if is_copyright and is_short:
+                      for qc in quote_content:
+                          result.append(f'> {qc}')
+                  else:
+                      for qc in quote_content:
+                          result.append(qc)
+              
+              return '\n'.join(result)
+
           img_md_pattern = re.compile(r"!\[[^\]]*\]\((https?://[^)]+)\)")
 
           def download_and_rewrite_images(article_id: str, markdown: str) -> str:
@@ -266,6 +337,7 @@ jobs:
                   continue
               body_md = h2t.handle(str(content))
               body_md = sanitize_markdown(body_md)
+              body_md = fix_csdn_quote_blocks(body_md)
               body_md = download_and_rewrite_images(article_id, body_md)
               path = os.path.join(OUTPUT_DIR, slug_filename(title, article_id))
               with open(path, "w", encoding="utf-8") as f:
