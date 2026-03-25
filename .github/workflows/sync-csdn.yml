@@ -4,33 +4,51 @@ on:
     - cron: '0 */6 * * *'  # 每6小时自动同步
   workflow_dispatch:      # 支持手动触发
 
+# 关键：给Actions写入权限，解决git push失败
+permissions:
+  contents: write
+
 jobs:
   sync:
     runs-on: ubuntu-latest
     steps:
-      - name: 拉取仓库代码
+      - name: 1. 拉取仓库代码
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          persist-credentials: false  # 修复权限问题
+          # 去掉persist-credentials: false，保留token，解决权限问题
 
-      - name: 配置Python环境
+      - name: 2. 配置Python环境
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+          cache: 'pip'  # 缓存pip，加速安装
 
-      - name: 安装CSDN同步工具（稳定维护版）
+      - name: 3. 创建文章目录（避免文件夹不存在报错）
+        run: mkdir -p ./docs/articles
+
+      - name: 4. 安装CSDN同步工具（稳定维护版）
         run: |
           python -m pip install --upgrade pip
           pip install csdn2markdown
 
-      - name: 拉取CSDN所有文章（你的用户名已填好）
-        run: csdn2markdown -u weixin_42390585 -o ./docs/articles
+      - name: 5. 拉取CSDN所有文章（带详细日志）
+        run: |
+          # 测试工具安装成功
+          csdn2markdown --version
+          # 拉取文章，-v输出详细日志，方便排查
+          csdn2markdown -u weixin_42390585 -v -o ./docs/articles
+        # 如果后续提示需要Cookie，在这里加 -c "${{ secrets.CSDN_COOKIE }}"
 
-      - name: 提交更新到GitHub
+      - name: 6. 提交更新到GitHub
         run: |
           git config --global user.name "auto-sync"
           git config --global user.email "auto@github.com"
           git add .
-          git commit -m "同步CSDN最新文章" || exit 0
+          # 检查是否有新文章，无变更则跳过提交，避免报错
+          if git diff --cached --quiet; then
+            echo "✅ 没有新文章，无需提交"
+            exit 0
+          fi
+          git commit -m "同步CSDN最新文章"
           git push
