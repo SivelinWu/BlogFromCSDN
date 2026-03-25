@@ -176,10 +176,10 @@ function formatDateFromId(id) {
   }
 }
 
-/* 文章卡片 */
+/* 文章卡片 - 确保无下划线 */
 .article-card {
   display: block;
-  text-decoration: none;
+  text-decoration: none !important;
   background: #ffffff;
   border-radius: 16px;
   border: 1px solid #e5e7eb;
@@ -188,10 +188,18 @@ function formatDateFromId(id) {
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
-.article-card:hover {
+.article-card:hover,
+.article-card:focus,
+.article-card:active {
   transform: translateY(-4px);
   box-shadow: 0 12px 28px rgba(0, 0, 0, 0.12);
   border-color: #d1d5db;
+  text-decoration: none !important;
+}
+
+/* 强制卡片内所有文字无下划线 */
+.article-card * {
+  text-decoration: none !important;
 }
 
 .card-content {
