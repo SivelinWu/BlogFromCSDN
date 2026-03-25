@@ -89,7 +89,8 @@ jobs:
               sys.exit(1)
 
           os.makedirs(OUTPUT_DIR, exist_ok=True)
-          PUBLIC_DIR = os.path.join("docs", ".vitepress", "public")
+          # VitePress 的静态资源目录是 <docs>/public
+          PUBLIC_DIR = os.path.join("docs", "public")
           CDN_DIR = os.path.join(PUBLIC_DIR, "cdn")
           os.makedirs(CDN_DIR, exist_ok=True)
 
@@ -281,7 +282,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -- "${{ env.OUTPUT_DIR }}" docs/.vitepress/public/cdn
+          git add -- "${{ env.OUTPUT_DIR }}" docs/public/cdn
           if git diff --staged --quiet; then
             echo "无变更，跳过提交"
             exit 0
