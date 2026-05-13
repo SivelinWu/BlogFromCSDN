@@ -36,11 +36,11 @@ jobs:
       CSDN_USERNAME: weixin_42390585
       OUTPUT_DIR: docs/articles
       # 单次下载正文的最大篇数（列表仍会多页抓取直到凑够或没有更多页）
-      MAX_ARTICLES: ${{ inputs.max_articles }}
+      MAX_ARTICLES: ${{ inputs.max_articles || '200' }}
       # 列表分页上限（CSDN 每页约 40 篇）；RSS 只有约 20 条，要全文需翻页
-      MAX_LIST_PAGES: ${{ inputs.max_list_pages }}
+      MAX_LIST_PAGES: ${{ inputs.max_list_pages || '50' }}
       # 每篇文章最多下载多少张图片（避免仓库体积爆炸）
-      MAX_IMAGES_PER_ARTICLE: ${{ inputs.max_images_per_article }}
+      MAX_IMAGES_PER_ARTICLE: ${{ inputs.max_images_per_article || '60' }}
     steps:
       - name: 拉取代码
         uses: actions/checkout@v4
@@ -77,9 +77,20 @@ jobs:
 
           CSDN_USERNAME = os.environ.get("CSDN_USERNAME", "").strip()
           OUTPUT_DIR = os.environ["OUTPUT_DIR"]
-          MAX_ARTICLES = int(os.environ.get("MAX_ARTICLES", "200"))
-          MAX_LIST_PAGES = int(os.environ.get("MAX_LIST_PAGES", "50"))
-          MAX_IMAGES_PER_ARTICLE = int(os.environ.get("MAX_IMAGES_PER_ARTICLE", "60"))
+
+          def read_int_env(name: str, default: int) -> int:
+              raw = (os.environ.get(name) or "").strip()
+              if not raw:
+                  return default
+              try:
+                  return int(raw)
+              except ValueError:
+                  print(f"WARNING: {name}={raw!r} 不是整数，使用默认值 {default}")
+                  return default
+
+          MAX_ARTICLES = read_int_env("MAX_ARTICLES", 200)
+          MAX_LIST_PAGES = read_int_env("MAX_LIST_PAGES", 50)
+          MAX_IMAGES_PER_ARTICLE = read_int_env("MAX_IMAGES_PER_ARTICLE", 60)
           # 逗号分隔，依次尝试（应对部分指纹在 CSDN 侧被拦）
           _imps = os.environ.get("CURL_CFFI_IMPERSONATE", "chrome120,chrome116,edge101")
           IMPERSONATE_CANDIDATES = [x.strip() for x in _imps.split(",") if x.strip()]
