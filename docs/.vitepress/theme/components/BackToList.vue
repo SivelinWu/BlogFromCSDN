@@ -21,28 +21,29 @@ function goBack() {
 
 <style scoped>
 .article-nav {
-  margin-bottom: 24px;
+  margin-bottom: 28px;
 }
 
 .back-btn {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 10px 16px;
+  min-height: 40px;
+  padding: 0 14px;
   font-size: 14px;
-  font-weight: 500;
-  color: #6b7280;
-  background: transparent;
-  border: 1px solid #e5e7eb;
+  font-weight: 700;
+  color: #2563eb;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
   border-radius: 8px;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
 }
 
 .back-btn:hover {
-  color: #374151;
-  background: #f9fafb;
-  border-color: #d1d5db;
+  color: #0f766e;
+  background: #ecfdf5;
+  border-color: #99f6e4;
   transform: translateX(-2px);
 }
 
