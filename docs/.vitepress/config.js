@@ -146,6 +146,7 @@ export default {
     nav: [
       { text: "首页", link: "/" },
       { text: "全部文章", link: "/articles/" },
+      { text: "关于", link: "/about" },
     ],
     sidebar: false,
     outline: {

@@ -1,8 +1,14 @@
 <script setup>
-import { computed, ref } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 
 const q = ref("");
 const selectedCategory = ref("全部");
+const selectedCloudKeyword = ref("");
+const cloudSeed = ref(0);
+const cloudRipple = ref(null);
+
+let cloudRippleTimer = 0;
+let cloudRippleId = 0;
 
 const allArticles = computed(() => (Array.isArray(__ARTICLES__) ? __ARTICLES__ : []));
 
@@ -220,6 +226,40 @@ function stableHash(value) {
   return hash >>> 0;
 }
 
+function sessionHash(value) {
+  return stableHash(`${cloudSeed.value}:${value}`);
+}
+
+function pointInPanel(event) {
+  const panel = event.currentTarget.closest?.(".word-cloud-panel") || event.currentTarget;
+  const rect = panel.getBoundingClientRect();
+  return {
+    x: `${Math.round(event.clientX - rect.left)}px`,
+    y: `${Math.round(event.clientY - rect.top)}px`,
+  };
+}
+
+function playCloudRipple(event) {
+  const point = pointInPanel(event);
+  cloudRippleId += 1;
+  cloudRipple.value = {
+    id: cloudRippleId,
+    x: point.x,
+    y: point.y,
+  };
+
+  if (cloudRippleTimer) {
+    window.clearTimeout(cloudRippleTimer);
+  }
+  cloudRippleTimer = window.setTimeout(() => {
+    cloudRipple.value = null;
+  }, 760);
+}
+
+function clearCloudKeyword() {
+  selectedCloudKeyword.value = "";
+}
+
 const wordCloud = computed(() => {
   const source = allArticles.value
     .map((article) => `${article.category || ""} ${article.title || ""} ${article.excerpt || ""}`)
@@ -252,7 +292,7 @@ const wordCloud = computed(() => {
   return items
     .map((item) => ({
       ...item,
-      order: stableHash(`${item.text}:${item.count}`),
+      order: sessionHash(`${item.text}:${item.count}`),
     }))
     .sort((a, b) => a.order - b.order)
     .map((item, index) => {
@@ -269,6 +309,10 @@ const wordCloud = computed(() => {
           "--cloud-size": `${size}px`,
           "--cloud-weight": weight,
           "--cloud-opacity": opacity,
+          "--cloud-delay": `${-(index % 7) * 0.42}s`,
+          "--cloud-enter-delay": `${0.08 + index * 0.018}s`,
+          "--cloud-enter-x": `${(sessionHash(`${item.text}:x`) % 19) - 9}px`,
+          "--cloud-enter-y": `${(sessionHash(`${item.text}:y`) % 17) - 8}px`,
         },
       };
     });
@@ -289,9 +333,15 @@ const articles = computed(() => {
 
 function selectCategory(category) {
   selectedCategory.value = category;
+  selectedCloudKeyword.value = category === "全部" ? "" : category;
 }
 
-function applyCloudKeyword(keyword) {
+function applyCloudKeyword(keyword, event) {
+  selectedCloudKeyword.value = keyword;
+  if (event) {
+    playCloudRipple(event);
+  }
+
   const category = categories.value.find((item) => item.name === keyword);
   if (category) {
     selectedCategory.value = keyword;
@@ -302,6 +352,18 @@ function applyCloudKeyword(keyword) {
   selectedCategory.value = "全部";
   q.value = keyword;
 }
+
+onMounted(() => {
+  cloudSeed.value =
+    Math.floor(Date.now() % 1000000000) ^
+    Math.floor(Math.random() * 1000000000);
+});
+
+onBeforeUnmount(() => {
+  if (cloudRippleTimer) {
+    window.clearTimeout(cloudRippleTimer);
+  }
+});
 
 function categoryTone(category) {
   const tones = {
@@ -320,9 +382,11 @@ function categoryTone(category) {
   <div class="blog-home">
     <header class="blog-header">
       <div class="hero-copy">
-        <span class="eyebrow">CSDN Sync Notes</span>
-        <h1 class="blog-title">骐骥一跃，不能十步；驽马十驾，功在不舍。</h1>
-        <p class="blog-subtitle">记录测试技术、工具实践和团队管理中的真实经验。</p>
+        <span class="eyebrow">Quality Engineering Notes</span>
+        <h1 class="blog-title">测试与质量工程札记</h1>
+        <p class="blog-subtitle">
+          骐骥一跃，不能十步；驽马十驾，功在不舍。记录测试开发、AI 自动化、性能测试、安全测试和团队管理中的真实经验。
+        </p>
       </div>
       <div class="hero-panel">
         <div class="metric">
@@ -337,23 +401,28 @@ function categoryTone(category) {
     </header>
 
     <div class="home-layout">
-      <aside class="word-cloud-panel" aria-label="关键词云">
-        <div class="cloud-heading">
-          <span class="cloud-eyebrow">Keyword Cloud</span>
-          <h2>关键词云</h2>
-        </div>
+      <aside
+        class="word-cloud-panel"
+        aria-label="关键词云"
+      >
+        <span
+          v-if="cloudRipple"
+          :key="cloudRipple.id"
+          class="cloud-ripple"
+          :style="{ left: cloudRipple.x, top: cloudRipple.y }"
+        ></span>
         <div class="word-cloud">
           <button
             v-for="word in wordCloud"
             :key="word.text"
             class="cloud-word"
-            :class="[word.tone, `level-${word.level}`]"
+            :class="[word.tone, `level-${word.level}`, { 'cloud-word-active': selectedCloudKeyword === word.text }]"
             :style="word.style"
             :title="`${word.text}：${word.count}`"
             type="button"
-            @click="applyCloudKeyword(word.text)"
+            @click="applyCloudKeyword(word.text, $event)"
           >
-            {{ word.text }}
+            <span class="cloud-word-inner">{{ word.text }}</span>
           </button>
         </div>
       </aside>
@@ -370,6 +439,7 @@ function categoryTone(category) {
               class="search-input"
               placeholder="搜索文章..."
               type="text"
+              @input="clearCloudKeyword"
             />
           </div>
           <div class="category-tabs" aria-label="文章分类">
@@ -433,12 +503,20 @@ function categoryTone(category) {
 }
 
 .blog-header {
+  position: relative;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 28px;
-  align-items: end;
+  align-items: center;
+  overflow: hidden;
   margin-bottom: 28px;
-  padding: 8px 4px 0;
+  padding: 34px 38px;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  border-radius: 8px;
+  background:
+    linear-gradient(135deg, rgba(219, 234, 254, 0.92), rgba(236, 253, 245, 0.74) 48%, rgba(255, 251, 235, 0.88)),
+    #ffffff;
+  box-shadow: 0 24px 70px rgba(15, 23, 42, 0.09);
 }
 
 .hero-copy {
@@ -448,26 +526,27 @@ function categoryTone(category) {
 .eyebrow {
   display: inline-flex;
   align-items: center;
-  margin-bottom: 12px;
+  margin-bottom: 10px;
   color: #2563eb;
   font-size: 13px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
+  font-weight: 850;
+  letter-spacing: 0;
   text-transform: uppercase;
 }
 
 .blog-title {
-  max-width: 780px;
+  max-width: 820px;
   font-size: 34px;
   font-weight: 800;
-  color: #111827;
-  margin: 0 0 10px;
-  line-height: 1.34;
+  color: #0f172a;
+  margin: 0 0 12px;
+  line-height: 1.3;
 }
 
 .blog-subtitle {
+  max-width: 760px;
   font-size: 16px;
-  color: #4b5563;
+  color: #334155;
   margin: 0;
   line-height: 1.8;
 }
@@ -475,21 +554,23 @@ function categoryTone(category) {
 .hero-panel {
   display: grid;
   grid-template-columns: repeat(2, minmax(92px, 1fr));
-  gap: 10px;
+  gap: 12px;
 }
 
 .metric {
-  padding: 16px 18px;
-  border: 1px solid rgba(148, 163, 184, 0.22);
+  min-width: 112px;
+  padding: 15px 16px;
+  border: 1px solid rgba(191, 219, 254, 0.74);
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.72);
-  box-shadow: 0 14px 36px rgba(15, 23, 42, 0.08);
+  background: rgba(255, 255, 255, 0.66);
+  box-shadow: 0 14px 34px rgba(15, 23, 42, 0.06);
+  backdrop-filter: blur(10px);
 }
 
 .metric strong {
   display: block;
   color: #0f172a;
-  font-size: 28px;
+  font-size: 27px;
   line-height: 1;
 }
 
@@ -523,39 +604,22 @@ function categoryTone(category) {
 .word-cloud-panel::before {
   position: absolute;
   inset: 0;
+  content: "";
+  pointer-events: none;
   background:
     linear-gradient(120deg, rgba(96, 165, 250, 0.14), transparent 34%),
     linear-gradient(300deg, rgba(52, 211, 153, 0.14), transparent 42%),
     linear-gradient(180deg, transparent, rgba(255, 255, 255, 0.46));
-  content: "";
-  pointer-events: none;
+  z-index: 0;
 }
 
-.cloud-heading,
 .word-cloud {
   position: relative;
-  z-index: 1;
-}
-
-.cloud-eyebrow {
-  display: inline-flex;
-  margin-bottom: 8px;
-  color: #0f766e;
-  font-size: 12px;
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.cloud-heading h2 {
-  margin: 0;
-  color: #0f172a;
-  font-size: 24px;
-  font-weight: 800;
-  line-height: 1.25;
+  z-index: 3;
 }
 
 .word-cloud {
+  position: relative;
   display: flex;
   min-height: 520px;
   padding: 14px 0 4px;
@@ -566,7 +630,22 @@ function categoryTone(category) {
   gap: 2px 4px;
 }
 
+.cloud-ripple {
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  background:
+    radial-gradient(circle, rgba(37, 99, 235, 0.34), rgba(20, 184, 166, 0.18) 44%, transparent 72%);
+  pointer-events: none;
+  transform: translate(-50%, -50%) scale(1);
+  z-index: 2;
+  animation: cloudRipple 0.72s ease-out forwards;
+}
+
 .cloud-word {
+  position: relative;
+  z-index: 2;
   display: inline-flex;
   align-items: center;
   min-height: 18px;
@@ -582,24 +661,114 @@ function categoryTone(category) {
   opacity: var(--cloud-opacity);
   white-space: nowrap;
   cursor: pointer;
-  transition: transform 0.2s ease, color 0.2s ease, background 0.2s ease, opacity 0.2s ease;
+  box-shadow: 0 0 0 rgba(37, 99, 235, 0);
+  transition:
+    transform 0.22s ease,
+    color 0.22s ease,
+    background 0.22s ease,
+    opacity 0.22s ease,
+    box-shadow 0.22s ease,
+    filter 0.22s ease;
+  animation: cloudWordEnter 0.78s cubic-bezier(0.16, 1, 0.3, 1) var(--cloud-enter-delay) backwards;
+}
+
+.cloud-word-inner {
+  display: inline-flex;
+  align-items: center;
+  line-height: 1;
 }
 
 .cloud-word:hover,
 .cloud-word:focus-visible {
   background: rgba(255, 255, 255, 0.58);
   color: #1d4ed8;
+  filter: saturate(1.28);
   opacity: 1;
   outline: none;
-  transform: translateY(-2px) scale(1.04);
+  box-shadow: 0 10px 26px rgba(37, 99, 235, 0.16);
+  transform: translateY(-3px) scale(1.08);
+}
+
+.cloud-word-active {
+  background: rgba(37, 99, 235, 0.12);
+  color: #1d4ed8;
+  opacity: 1;
+  box-shadow:
+    0 0 0 1px rgba(96, 165, 250, 0.28),
+    0 12px 28px rgba(37, 99, 235, 0.16);
 }
 
 .cloud-word.level-5 {
   text-shadow: 0 8px 20px rgba(37, 99, 235, 0.12);
 }
 
+.cloud-word.level-5 .cloud-word-inner {
+  animation: cloudBreath 5.6s ease-in-out infinite;
+  animation-delay: calc(var(--cloud-enter-delay) + 0.78s + var(--cloud-delay));
+}
+
+.cloud-word.level-4 .cloud-word-inner {
+  animation: cloudBreath 7.2s ease-in-out infinite;
+  animation-delay: calc(var(--cloud-enter-delay) + 0.78s + var(--cloud-delay));
+}
+
 .cloud-word.level-1 {
   letter-spacing: 0;
+}
+
+@keyframes cloudRipple {
+  0% {
+    opacity: 0.72;
+    transform: translate(-50%, -50%) scale(1);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(18);
+  }
+}
+
+@keyframes cloudWordEnter {
+  0% {
+    opacity: 0;
+    filter: blur(5px) saturate(0.7);
+    transform: translate(var(--cloud-enter-x), var(--cloud-enter-y)) scale(0.72);
+  }
+
+  58% {
+    opacity: 1;
+    filter: blur(0) saturate(1.28);
+  }
+
+  100% {
+    opacity: var(--cloud-opacity);
+    filter: blur(0) saturate(1);
+    transform: translate(0, 0) scale(1);
+  }
+}
+
+@keyframes cloudBreath {
+  0%,
+  100% {
+    filter: saturate(1);
+    text-shadow: 0 7px 18px rgba(37, 99, 235, 0.1);
+  }
+
+  50% {
+    filter: saturate(1.34);
+    text-shadow:
+      0 0 12px rgba(96, 165, 250, 0.24),
+      0 10px 26px rgba(20, 184, 166, 0.14);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cloud-word,
+  .cloud-ripple,
+  .cloud-word.level-4 .cloud-word-inner,
+  .cloud-word.level-5 .cloud-word-inner {
+    animation: none;
+  }
 }
 
 .cloud-tone-0 {
@@ -904,7 +1073,7 @@ function categoryTone(category) {
   .blog-header {
     grid-template-columns: 1fr;
     gap: 18px;
-    padding-top: 0;
+    padding: 28px 24px;
   }
 
   .hero-panel {
@@ -912,7 +1081,7 @@ function categoryTone(category) {
   }
 
   .blog-title {
-    font-size: 26px;
+    font-size: 25px;
     line-height: 1.38;
   }
 
@@ -938,10 +1107,6 @@ function categoryTone(category) {
     padding: 20px;
   }
 
-  .cloud-heading h2 {
-    font-size: 21px;
-  }
-
   .cloud-word {
     font-size: min(var(--cloud-size), 22px);
   }
@@ -950,6 +1115,21 @@ function categoryTone(category) {
     font-size: 18px;
     line-height: 1.45;
     -webkit-line-clamp: 3;
+  }
+}
+
+@media (max-width: 480px) {
+  .blog-header {
+    padding: 24px 20px;
+  }
+
+  .metric {
+    min-width: 0;
+    padding: 14px 12px;
+  }
+
+  .metric strong {
+    font-size: 24px;
   }
 }
 </style>

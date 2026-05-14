@@ -2,6 +2,7 @@
 import { computed } from "vue";
 import { useData } from "vitepress";
 import DefaultTheme from "vitepress/theme";
+import ArticleEnhancements from "./components/ArticleEnhancements.vue";
 import BackToList from "./components/BackToList.vue";
 
 const { Layout } = DefaultTheme;
@@ -23,6 +24,9 @@ const isArticlePage = computed(() => {
   <Layout>
     <template #doc-before>
       <BackToList v-show="isArticlePage" />
+    </template>
+    <template #doc-after>
+      <ArticleEnhancements v-if="isArticlePage" />
     </template>
   </Layout>
 </template>
